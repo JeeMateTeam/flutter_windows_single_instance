@@ -61,7 +61,7 @@ class WindowsSingleInstance {
         }
 
         var dataSize = 16384;
-        var data = calloc<Int8>(dataSize);
+        var data = calloc<Uint8>(dataSize);
         final numRead = calloc<Uint32>();
         try {
           while (GetOverlappedResult(pipeHandle, overlap, numRead, 0) == 0) {
@@ -87,10 +87,12 @@ class WindowsSingleInstance {
   static void _writePipeData(String filename, List<String>? arguments) {
     final pipe = _openPipe(filename);
     final bytesString = jsonEncode(arguments ?? []);
-    final bytes = bytesString.toNativeUtf8();
+    final utfbytes = bytesString.toNativeUtf8();
+    final len = utfbytes.length;
+    final bytes = utfbytes.cast<Uint8>();
     final numWritten = malloc<Uint32>();
     try {
-      WriteFile(pipe, bytes, bytes.length, numWritten, nullptr);
+      WriteFile(pipe, bytes, len, numWritten, nullptr);
     } finally {
       free(numWritten);
       free(bytes);
@@ -117,6 +119,7 @@ class WindowsSingleInstance {
   static Future ensureSingleInstance(List<String> arguments, String pipeName,
       {Function(List<String>)? onSecondWindow,
       bool bringWindowToFront = true}) async {
+    if (!Platform.isWindows) return;
     final _pipeName = "\\\\.\\pipe\\$pipeName";
     final bool isSingleInstance = await _channel
         .invokeMethod('isSingleInstance', <String, Object>{"pipe": pipeName});
